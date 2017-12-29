@@ -77,7 +77,7 @@ where
 impl<'a, A, O, D, F> From<Box<F>> for FnStackMut<'a, A, O, D>
 where
     D: Array,
-    F: FnMut(A) -> O + 'a,
+    F: FnMut(A) -> O + ?Sized + 'a,
 {
     #[inline]
     fn from(f: Box<F>) -> Self {

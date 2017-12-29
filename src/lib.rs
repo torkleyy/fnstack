@@ -1,5 +1,6 @@
 pub use mutable::FnStackMut;
 pub use once::FnStackOnce;
+pub use raw::FnBox;
 pub use reference::FnStackRef;
 
 use std::mem::{align_of, size_of, uninitialized};

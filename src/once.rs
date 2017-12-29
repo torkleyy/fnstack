@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::mem::{align_of, forget, size_of};
 use std::ptr;
 
-use raw::{Boxed, CallRawOnce, Static, Trait};
+use raw::{Boxed, CallRawOnce, FnBox, Static, Trait};
 use {Array, StaticFn};
 
 pub struct FnStackOnce<'a, A, O, D = [u8; 16]>
@@ -81,7 +81,7 @@ where
 impl<'a, A, O, D, F> From<Box<F>> for FnStackOnce<'a, A, O, D>
 where
     D: Array,
-    F: FnOnce(A) -> O + 'a,
+    F: FnBox<A, O> + ?Sized + 'a,
 {
     #[inline]
     fn from(f: Box<F>) -> Self {
