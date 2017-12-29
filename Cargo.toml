@@ -1,0 +1,13 @@
+[package]
+name = "fnstack"
+version = "0.1.0"
+authors = ["torkleyy <torkleyy@gmail.com>"]
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.1.1"
+
+[[bench]]
+name = "benches"
+harness = false

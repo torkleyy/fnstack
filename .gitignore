@@ -1,0 +1,13 @@
+# Rust files
+target
+Cargo.lock
+**/*.rs.bk
+.criterion
+
+# Editor/IDE files
+.idea
+*.iml
+*.vscode
+
+# Book
+/book/book
