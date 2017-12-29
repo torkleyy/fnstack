@@ -1,33 +1,33 @@
 use std::marker::PhantomData;
-use std::mem::{align_of, forget, size_of};
+use std::mem::{align_of, size_of};
 use std::ptr;
 
-use raw::{Boxed, CallRawOnce, Static, Trait};
 use {Array, StaticFn};
+use raw::{Boxed, CallRawMut, Static, Trait};
 
-pub struct FnStackOnce<'a, A, O, D = [u8; 16]>
+pub struct FnStackMut<'a, A, O, D = [u8; 16]>
 where
     D: Array,
 {
     data: D,
     drop: fn(*const u8),
-    ptr: fn(*const u8, A) -> O,
-    marker: PhantomData<FnOnce(A) -> O + 'a>,
+    ptr: fn(*mut u8, A) -> O,
+    marker: PhantomData<FnMut(A) -> O + 'a>,
 }
 
-impl<'a, A, O, D> FnStackOnce<'a, A, O, D>
+impl<'a, A, O, D> FnStackMut<'a, A, O, D>
 where
     D: Array,
 {
     #[inline]
     pub fn new<F: 'a>(f: F) -> Self
     where
-        F: FnOnce(A) -> O + 'a,
+        F: FnMut(A) -> O + 'a,
     {
         if size_of::<F>() < D::size() && align_of::<F>() <= D::align() {
-            FnStackOnce::from_raw(Trait(f))
+            FnStackMut::from_raw(Trait(f))
         } else {
-            FnStackOnce::from_raw(Boxed(Box::new(f)))
+            FnStackMut::from_raw(Boxed(Box::new(f)))
         }
     }
 
@@ -36,13 +36,13 @@ where
     where
         F: StaticFn<A, O>,
     {
-        FnStackOnce::from_raw(Static(PhantomData::<F>))
+        FnStackMut::from_raw(Static(PhantomData::<F>))
     }
 
     #[inline]
     fn from_raw<R>(raw: R) -> Self
     where
-        R: CallRawOnce<A, O>,
+        R: CallRawMut<A, O>,
     {
         assert!(size_of::<R>() <= D::size(), align_of::<R>() <= D::align());
 
@@ -50,26 +50,22 @@ where
             let mut data = D::uninitialized();
             ptr::write(&mut data as *mut D as *mut R, raw);
 
-            FnStackOnce {
+            FnStackMut {
                 data,
                 drop: R::drop_raw,
-                ptr: R::call_raw_once,
+                ptr: R::call_raw_mut,
                 marker: PhantomData,
             }
         }
     }
 
     #[inline]
-    pub fn call(self, args: A) -> O {
-        let res = (self.ptr)(self.data.as_ptr(), args);
-
-        forget(self);
-
-        res
+    pub fn call(&mut self, args: A) -> O {
+        (self.ptr)(self.data.as_mut_ptr(), args)
     }
 }
 
-impl<'a, A, O, D> Drop for FnStackOnce<'a, A, O, D>
+impl<'a, A, O, D> Drop for FnStackMut<'a, A, O, D>
 where
     D: Array,
 {
@@ -78,20 +74,20 @@ where
     }
 }
 
-impl<'a, A, O, D, F> From<Box<F>> for FnStackOnce<'a, A, O, D>
+impl<'a, A, O, D, F> From<Box<F>> for FnStackMut<'a, A, O, D>
 where
     D: Array,
-    F: FnOnce(A) -> O + 'a,
+    F: FnMut(A) -> O + 'a,
 {
     #[inline]
     fn from(f: Box<F>) -> Self {
-        FnStackOnce::from_raw(Boxed(f))
+        FnStackMut::from_raw(Boxed(f))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::FnStackOnce;
+    use super::FnStackMut;
 
     #[test]
     fn test_drop() {
@@ -106,9 +102,9 @@ mod tests {
         }
 
         {
-            let droppable = Droppable(&mut num_drops);
-            let _closure: FnStackOnce<(), ()> = FnStackOnce::new(move |()| {
-                let _d = droppable;
+            let mut droppable = Droppable(&mut num_drops);
+            let _closure: FnStackMut<(), ()> = FnStackMut::new(move |()| {
+                let _d = &mut droppable;
             });
         }
 
@@ -117,9 +113,9 @@ mod tests {
         struct ExceedsLimit<'a>(Droppable<'a>, [u8; 128]);
 
         {
-            let obj = ExceedsLimit(Droppable(&mut num_drops), [0; 128]);
-            let _closure: FnStackOnce<(), (), [u8; 16]> = FnStackOnce::new(move |()| {
-                let _o = obj;
+            let mut obj = ExceedsLimit(Droppable(&mut num_drops), [0; 128]);
+            let _closure: FnStackMut<(), (), [u8; 16]> = FnStackMut::new(move |()| {
+                let _o = &mut obj;
             });
         }
 
@@ -128,13 +124,13 @@ mod tests {
 
     #[test]
     fn variance_check() {
-        fn takes_fn<'a>(f: FnStackOnce<'a, (), ()>) {
+        fn takes_fn<'a>(mut f: FnStackMut<'a, (), ()>) {
             f.call(());
         }
 
         const X: usize = 5;
         let x = &X;
-        let f: FnStackOnce<'static, _, _> = FnStackOnce::new(move |()| {
+        let f: FnStackMut<'static, _, _> = FnStackMut::new(move |()| {
             let _y = x;
         });
 

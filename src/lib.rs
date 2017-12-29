@@ -1,9 +1,13 @@
+pub use mutable::FnStackMut;
 pub use once::FnStackOnce;
+pub use reference::FnStackRef;
 
 use std::mem::{align_of, size_of, uninitialized};
 
+mod mutable;
 mod once;
-//mod reference;
+mod raw;
+mod reference;
 
 mod private {
     pub struct Private;

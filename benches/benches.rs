@@ -45,20 +45,19 @@ fn bench_call_iter_heap(b: &mut Bencher) {
 }
 
 fn bench_call_iter_inline(b: &mut Bencher) {
-    b.iter_with_setup(|| {
-        let v: Vec<&_> = vec![
-            &sample_fn,
-            &sample_fn,
-            &sample_fn,
-        ];
+    b.iter_with_setup(
+        || {
+            let v: Vec<&_> = vec![&sample_fn, &sample_fn, &sample_fn];
 
-        black_box(v)
-    }, |fns| {
-        fns.into_iter()
-            .enumerate()
-            .map(|(i, f)| f(i))
-            .sum::<usize>()
-    })
+            black_box(v)
+        },
+        |fns| {
+            fns.into_iter()
+                .enumerate()
+                .map(|(i, f)| f(i))
+                .sum::<usize>()
+        },
+    )
 }
 
 fn bench_call_iter_stack(b: &mut Bencher) {

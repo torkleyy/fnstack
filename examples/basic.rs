@@ -17,7 +17,7 @@ fn main() {
             FnStackOnce::new(|x| x + 42),
         ];
 
-        let mut next = move || heterogeneous.remove(0).unwrap();
+        let mut next = move || heterogeneous.remove(0);
 
         // Increase `value` by 2 and assert it's the result divided by two
         assert_eq!(next().call(2), 3);
